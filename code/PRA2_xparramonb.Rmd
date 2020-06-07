@@ -1,0 +1,523 @@
+---
+title: "R Notebook"
+author: "Xavier Parramon Boada"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# 1. Detalls de l'activitat
+
+## 1.1. Descripció
+
+En aquesta pràctica s'elabora un cas pràctic orientat a aprendre a identificar les dades rellevants per a un projecte analític i usar les eines d'integració, neteja, validació i anàlisi de les mateixes.
+
+## 1.2. Objectius
+
+Els objectius concrets d'aquesta pràctica són:
+
+* Aprendre a aplicar els coneixements adquirits i la seva capacitat de resolució de problemes en entorns nous o poc coneguts dintre de contextos més amplis o multidisciplinaris.
+
+* Saber identificar les dades rellevants i els tractaments necessaris )Integració, neteja i validació) per dur a terme un projecte analític.
+
+* Aprendre a analitzar les dades adequadament per abordar la informació continguda en les dades.
+
+* identificar la millor representació dels resultats per tal d'aportar conclusions sobre el problema plantejat en el procés analític.
+
+* Actuar amb els principis ètics i legals relacionats amb la manipulació de dades en funció de l'àmbit d'aplicació.
+
+* Desenvolupar les habilitats d'aprenentatge que els permetin continuar estudiant d'una manera que haurà de ser en gran manera autodirigida o autònoma.
+
+* Desenvolupar la capacitat de cerca, gestió i ús d'informació i recursos en l'àmbit de la ciència de dades.
+
+## 1.3. Competències
+
+En aquesta pràctica es desenvolupen les següents competències del Màster de Data Science:
+
+* Capacitat d'analitzar un problema en el nivell d'abstracció adequat a cada situació i aplicar les habilitats i coneixements adquirits per abordar-lo i resoldre'l.
+
+* Capacitat per aplicar les tècniques específiques de tractament de dades (integració, transformació, neteja i validació) per al seu posterior anàlisi.
+
+# 2. Resolució
+
+Procedim amb la resolució de la pràctica.
+
+## 2.1. Descripció del dataset.
+
+El dataset seleccionat s’anomena *“Titanic: Machine Learning from Disaster”*, i s’ha obtingut a partir de l’enllaç de Kaggel.
+El dataset recull un conjunt d’informació referent als passatgers que viatjaven en el titànic, i l’objectiu d’aquest és crear un model que sigui capaç de predir si els passatgers va sobreviure o no a l’accident a partir de diferents paràmetres.  Els atributs que podem trobar son:
+
+* **PassengerId**: identificador del passatger del titànic.
+* **Survived**: Supervivencia a l'accident. (0=no, 1= Si)
+* **Pclass**: Classe del passatger. (1=1ra,2=2na,3=3ra)
+* **Name**: Nom del passatger.
+* **Sex**: Sexe del passatger.
+* **Age**: Edat del passatger en anys.
+* **SibSp**: Nombre de germans/cònjuges a bord del titànic.
+* **Parch**: Nombre de pares/fills a bord del titànic.
+* **Ticket**: numero del tiquet.
+* **Fare**: tarifa del passatger.
+* **Cabin**: numero de cabina.
+* **Embarked**: Port de l'embarc. (C=Cherbourg, Q=Queenstown, S=Southampton)
+
+Com que l’objectiu és crear un model predictiu disposem de 2 datasets (train.csv amb 891 registres i test.csv amb 418 registres), la diferencia és que el dataset train conte totes les dades disponibles per a crear i entrenar el model i el dataset test les dades necessàries per fer les prediccions, és a dir test conte dades semblants a train excepte de al informació de si va sobre viure o no.
+
+També inclou un altre csv *"gender_submission.csv"* com a exemple del format de l’arxiu resultant que s'ha d’entregar per la competició. Per a la pràctica no es rellevant.
+
+## 2.2. Integració i selecció de les dades d'interès a analitzar.
+
+El primer que farem és carregar les dades dels diferents datasets, estudiar-les i analitzar-les, amb l’objectiu de descobrir quins atributs ens aporten més informació per a la creació del model predictiu.<br>
+Comencem carregant les dades dels 2 csv. Una opció per a facilitar la neteja, seria unir els 2 csv en un únic dataset, d’aquesta manera només tindríem que fer el procés de neteja una sola vegada i després el podríem tornar a separar. Però, per a assegurar que no es barrejant les dades i per a simular que obtenim 2 datasets diferents en el temps, un primer per a crear el model i un segon més tard per a utilitzar-lo amb el model, farem la neteja per separat.
+
+```{r}
+#Importem els datasets
+train <- read.csv("../data/train.csv",header=TRUE)
+test <- read.csv("../data/test.csv",header=TRUE)
+head(train,5)
+head(test,5)
+```
+Les dades dels 2 csv s'han carregat correctament. Seguim amb un anàlisi ràpid del tipus de dades i el rang de valors que poden prendre cada un dels atributs.
+```{r} 
+print("Train:")
+str(train)
+summary(train)
+print("Tests:")
+str(test)
+summary(test)
+```
+
+Podem observar com efectivament els tipus d’atributs en els 2 datasets son iguals i amb els mateixos rangs de valors, a excepció de la variable *Survived* que és l’objectiu de la predicció del dataset test.<br>
+Observant els resultats també poden detectar que alguns dels diferents atributs s’han interpretat com a variables quantitatives, degut a que són valors numèrics, però en realitat són variables qualitatives ja que representen un tipus d’informació que te un rang fix de paràmetres i de poca variació, com poden ser els atributs *Pclass*, que representa la classe del passatger (1,2,3) i *Survived*, que és un booleà que representa si el passatger va sobreviure o no.
+
+```{r}
+#Passem les variables quantitatives a qualitatives
+train$Survived<-as.factor(train$Survived)
+train$Pclass<-as.factor(train$Pclass)
+test$Pclass<-as.factor(test$Pclass)
+```
+
+
+### 2.2.1 Selecció de les dades d'intereés
+
+Tot seguit procedim a seleccionar les dades que ens poden ser interesants per el model.<br>
+De l’apartat anterior ja hem pogut identificar, una seria d’atributs que per la informació que representen no ens aporten cap tipus d’informació útil per a saber si van sobreviure o no, com són: *PassangerId* (identificador del passatger), *Name* (Nom del passatger), *Tiquet* (tiquet del passatger) i *Faré* (tarifa del tiquet). Per tant aquestes variables les podem eliminar.
+```{r}
+#Eliminar files
+train<-subset(train,select=-c(PassengerId,Name,Ticket,Fare) )
+test<-subset(test,select=-c(PassengerId,Name,Ticket,Fare))
+```
+
+També podem identificar ràpidament atributs que segurament estan relacionats amb la supervivència o no del passatger, com poden ser: *Pclass* (classe del passatger), *Sex* (sexe) i *Age* (edat).
+La resta de variables tan pot ser que ens puguin aportar informació útil com no, aquestes són: *sibSp* (nombre de germans/cònjuges a bord), *Parch* (Nombre de pares/fills a bord), *Cabin* (cabina del vaixell) i *Embarked* (Port de l'embarc). Com em dit a priori sembla que la informació que aporten no hagi de ser rellevant per al model, però potser hi ha algun tipus de relació que desconeixem o combinat amb altre informació pots ser útil, per tant la mantindrem. Per exemple, potser els passatgers amb cabines més pròximes als bots salvavides van sobreviure més que els de les cabines més allunyades. <br>
+
+Així, els dataframes resultats són els següents:
+
+```{r}
+print("Train:")
+str(train)
+print("Test:")
+str(test)
+```
+
+## 2.3 Neteja de les dades.
+
+Un cop ja hem carregat les dades i hem fet una primera selecció de les dades d’interès procedim a netejar-les per a eliminar tots els errors presents. La neteja de les dades la realitzem en els 2 datasets per igual, train i test.
+
+### 2.3.1 Ceros y elements buits
+
+Comencem buscat registres amb valors nuls o perduts. De la anàlisis anterior ja hem pogut detectar que la variable *Age* contenia valors nuls, així que entrem en detall.
+
+```{r}
+#Valors Nan i buits
+print("train:")
+print("Nan")
+colSums(is.na(train))
+print("Buit")
+colSums(train=="")
+print("test:")
+print("Nan")
+colSums(is.na(test))
+print("Buit")
+colSums(test=="")
+```
+
+Efectivament veiem que  l'atribut *Age* conte dades buides en els 2 datasets (177 a train i 86 a test), també l'atribut *Cabin* conte moltes dades sense valor en els 2 datasets (687 a train i 327 a test) i l'atribut *embarked* conte 2 dades buides en el dataset train.<br>
+Per a tractar els valors buits o nuls hi ha diferents mètodes, com poden ser eliminar els registres, substituir els valors perduts per una mesura de tendència central, predir o imputar els valors amb mètodes probabilístics o mantenir els valors buit substituint-los per una constant o etiqueta.<br>
+Anem a veure per a cada cas quina és la millor solució.<br>
+Comencem per a l'atribut *Embarked*, ja que només hem detectat 2 registres sense valor, podríem optar per eliminar-los, però els substituirem per el valor de tendència per així seguir aprofitant aquestes dades, ja que al ser poques tampoc ens afectaran molt.
+```{r}
+#Imputació de valors a Embarked
+train[which(train$Embarked==""),"Embarked"]="S"
+test[which(test$Embarked==""),"Embarked"]="S"
+train$Embarked<-factor(train$Embarked)
+test$Embarked<-factor(test$Embarked)
+```
+El següent atribut es el *Cabin*, la majoria dels seus valors són buit, per tant podríem optar per eliminar directament l’atribut, ja que no sabem si ens aporta o no ens aporta informació, però el que farem és substituir els valors buit per l’etiqueta “No” fent referencia a que el passatge no disposa de cabina, i al mateix temps substituirem la resta de valors per “Si”. Per tant el que farem, crear un nou atribut *HasCabin* que pren valors “Si” o “No” i eliminar l’atribut *Cabin*, així corregim els errors a les dades i seguim extreien informació que pot ser útil de l’atribut.
+```{r}
+#Nova variable hasCabin
+train["HasCabin"]<-ifelse(train$Cabin=="","No","Si")
+test["HasCabin"]<-ifelse(test$Cabin=="","No","Si")
+#la passem a factor
+train$HasCabin<-as.factor(train$HasCabin)
+test$HasCabin<-as.factor(test$HasCabin)
+#eliminem l'antiga variable
+train<-subset(train,select=-Cabin)
+test<-subset(test,select=-Cabin)
+```
+
+Per últim, queda la variable *Age*, com que el nombre de dades buides es elevat no les podem eliminar, i hi imputarem valors, podríem utilitzar un valor de tendència central, però crec que el més representatiu de la població seria utilitzar un mètode probabilístic per imputar els valors perduts. En aquest cas utilitzarem el mètode del *k* veïns (*kNN-imputation*), que els que fa es calcular el valor del registre utilitzant els *k* veïns més pròxims a aquest. 
+
+```{r}
+#Importen la llibreria necessaria
+library(VIM)
+#corregim el model amb els 5 veins més propers
+train$Age<-kNN(train,k=5)$Age
+test$Age<-kNN(test,k=5)$Age
+```
+
+Fem la comprovació final de les variables per a comprovar com han quedat, després del tractament de les dades buides o nul·les.
+
+```{r}
+#Valors Nan i buits
+print("train:")
+print("Nan")
+colSums(is.na(train))
+print("Buit")
+colSums(train=="")
+summary(train)
+print("test:")
+print("Nan")
+colSums(is.na(test))
+print("Buit")
+colSums(test=="")
+summary(test)
+```
+
+Com veiem ja no tenim valors buits ni nuls, i els estadístics de la variable *Age* no han variat gaire respecte als originals al afegir els valors imputats.
+
+### 2.3.2 Valors extrems.
+
+Seguim comprovant si hi ha valors extrems o *outliners*. Entenem com a valors extrem aquells valors que es troben molt allunyats de la distribució normal d’una variable o població. Com a criteri general prendrem com a valors extrems tots aquells valors que estan més lluny de 3 desviacions estàndards respecte de la mitjana del conjunt.<br>
+Per corregí aquets valors, podem eliminar les dades amb valors extrems o substituir aquets valor extrems per el valor més pròxim dins del rang admès, o utilitzar la imputació de valors per mètodes probabilístics.<br>
+La millor manera de detectar visualment els valors extrems és mitjançant Boxplots. Les variables quantitatives són les úniques que poden tenir valors extrems, ja que les variables qualitatives, tot el seu rang de valors entra dins de la distribució.
+
+```{r}
+#Fem els boxplot de les 3 variables quantitatives
+par(mfrow=c(1,3))
+boxplot(train$Age,xlab="Age")
+boxplot(train$SibSp,xlab="SibSp")
+boxplot(train$Parch,xlab="Parch")
+```
+```{r}
+par(mfrow=c(1,3))
+boxplot(test$Age,xlab="Age")
+boxplot(test$SibSp,xlab="SibSp")
+boxplot(test$Parch,xlab="Parch")
+```
+Observem que en totes 3 variables hi ha valors extrems. En el cas de *SibSp* i *Parch*, els valors extrems detectats són els valors que pren la variable exceptuant el valor tendència, això és degut a que la majoria de dades pertanyen al valor tendència, i un nombre molt petit de dades a la resta de valors del rang. Això també ens indica que aquetes dos atributs els podríem haver transformat a dades qualitatives. Decidim mantenir les dades dels valors extrems sense modificació perquè pot ser que ens aportin informació útil.<br>
+
+Respecte a la variable *Age*, veiem que tan tenim valors extrems per sobre com per sota. Observem quin són:
+
+```{r}
+print("Train")
+boxplot.stats(train$Age)$out
+print("Test")
+boxplot.stats(test$Age)$out
+```
+Veiem que hi ha valors extrems, en el dataset train hi ha 13 dades amb valor igual o superior a 65, al dataset test, hi ha 16 dades amb valor igual o superior a 59 i 4 dades amb valor inferior o igual a 0.92.<br>
+Tot i això, considero els valors vàlids, ja que el que fa és indicar-nos que hi havia gent gran al vaixell, majors de 59 anys i també nadons de menys d'1 any, no hi ha cap dada que prengui un valor que pugui estar fora del rang d’edat d'una persona, per això deixem els valors extrems tan i com estan.
+
+Exportem els dataset nets
+```{r}
+#Exportem els datasets
+write.csv(train,"../data/train_clean.csv", row.names = TRUE)
+write.csv(test,"../data/test_clean.csv", row.names = TRUE)
+```
+
+## 2.4 Anàlisi de les dades
+
+Un cop ja hem netejat les dades, podem començar amb l’anàlisi d’aquestes. Per a la anàlisis només utilitzem el dataset train, ja que és del que disposem tots els atributs necessaris per a poder valorar correctament els resultats.
+
+### 2.4.1 Selecció dels grups de dades que es volen analitzar/comparar
+
+L'objectiu és predir a partir dels atributs seleccionats si els passatgers van sobreviure o no a l'accident del titanic, anterior ment ja hem fet una selecció dels atributs que volem utilitzar. Per a la selecció dels grups de dades, seleccionem totes les dades del dataset train i les volem comparar en front de l'atribut *survived* per saber si ens aporten informació rellevant.<br>
+
+Comencem analitzant les diferents variables qualita
+
+```{r}
+#careguem llibreries
+library(ggplot2)
+library(gridExtra)
+# Visualitzem la relació entre les variables "sex" i "survival":
+g1<-ggplot(data=train,aes(x=Sex,fill=Survived))+geom_bar(position="fill")+ylab("Frequència")
+g2<-ggplot(data=train,aes(x=Pclass,fill=Survived))+geom_bar(position="fill")+ylab("Frequència")
+g3<-ggplot(data=train,aes(x=Embarked,fill=Survived))+geom_bar(position="fill")+ylab("Frequència")
+g4<-ggplot(data=train,aes(x=HasCabin,fill=Survived))+geom_bar(position="fill")+ylab("Frequència")
+grid.arrange(g1,g2,g3,g4,nrow=2)
+```
+
+De les diferents gràfiques podem veure com si que ens aporten informacio rellevant. Per exemple de la variable Sex, les dones tenen una probabilitat més alta de sobreviure que els homes, per a *Pclass* els de 1a classe tenen una probabilitat més alta que els de 2a que també tenen una probabilitat més alta que els de 3a, Els passatgers del por C tenen una probabilitat més alta de sobreviure que els dels altres 2 ports i els passatgers amb cabina tenen una probabilitat molt més alta de sobreviure que els que no en tenen.
+
+### 2.4.2 Comprovació de la normalitat i homogeneitat de la variància.
+
+Abans d'evaluar la relació que hi ha entre les variables quantitatives i la variable *Survived* hem dobtenir més informació d'aquestes per a saber quin és el millor metode per aplicar.<br>
+Per aixó començem coprovant si questes variables segueixen una distribució normal o no. Per a fer-ho utilitzem el test de *Shapiro-Wilk*, que és considerat un dels mètodes més potents per contrastar la normalitat.<br>
+Aquest mètode asumeix coma  hipòtesi nul·la que la població està distribuida normalment, per tant si el p-valor és més petit que el nivell de significació (prendrem un valor de  alpha = 0,05) llavors rebutjem la hipòtesi nul·la i per tant les dades no segueixen una distribució normal.
+
+```{r}
+# fem el test de Sapiro-Wilk a les variables numèriques
+alpha =0.05
+col.names = colnames(train)
+for (i in 1:ncol(train)) {
+  #Comprovar si es numéric
+  if (is.integer(train[,i]) | is.numeric(train[,i])) {
+    #Fer el test
+    f<-shapiro.test(train[,i])
+    print(f)
+    p_val =f$p.value
+    cat(col.names[i])
+    if (p_val < alpha) {
+      cat(" no segueix distribució normal:\n")
+    } else {
+      cat(" segueix distribució normal:\n")
+    }
+  }
+}
+
+```
+
+Tots els p-valors són pràcticament 0, per tant rebutgem les hipòtesis nul·les i assumim que no segueixen una distribució normal. Si les representem gràficament amb un histograma també veiem que la seva forma tampoc és la d'una distribució normal.
+
+```{r fig.width=15,fig.height=5}
+g1<-ggplot(data=train,aes(x=Age,fill=Survived))+geom_histogram()
+g2<-ggplot(data=train,aes(x=SibSp,fill=Survived))+geom_bar()
+g3<-ggplot(data=train,aes(x=Parch,fill=Survived))+geom_bar()
+grid.arrange(g1,g2,g3,nrow=1)
+```
+
+El seugent pas és comporvar l'homoscedesticitat en les dades, és a dir, de la igualtat de variàncies entre els grups que s'han de comparar. Com que les dades no segueixen una distribució nomral no podem aplicar el test de *Levene* i hem d'aplicar l'alternativa no paramètica que és el test de *Fligner-killeen*.<br>
+Aquest mètode assumeix com a hipòtesi nul·la la igaltat de variàncies en els diferents grups de dades, de manera que p-valors inferiors al nivell de significació indicaran heteroscedesticitat.
+
+
+```{r}
+# fem el test de Sapiro-Wilk a les variables numèriques
+alpha =0.05
+col.names = colnames(train)
+for (i in 1:ncol(train)) {
+  #Comprovar si es numéric
+  if (is.integer(train[,i]) | is.numeric(train[,i])) {
+    #Fer el test
+    f<-fligner.test(x=list(train[,i],train$Survived))
+    print(f)
+    p_val =f$p.value
+    cat(col.names[i])
+    if (p_val < alpha) {
+      cat(" no hi ha igualtat de variàncies:\n")
+    } else {
+      cat(" hi ha igualtat de variàncies:\n")
+    }
+  }
+}
+```
+ 
+Em obtingut resultats diferents, per a l'atribut *Age* hem obtingut un p-valor de pràcticament 0, per tant no hi ha igualtat de variàncies, en canvi, per als atributs *SibSp* i *Parch* si que hem obtingut igualtat de variàncies.
+
+## 2.5. Aplicació de proves estadístiques per comparar els grups de dades.
+
+### 2.5.1 Correlacions
+
+El primer que fem és analitzar les correlacions entre la variable objectiu (*Survived*) i la resta de variables disponibles per determinar quines d’aquestes són les que exerceixen una major influencia. A l’apartat anterior hem vist que hi ha una relació, ara la quantificarem.<br>
+Per a les variables numèriques, al no complir-se el criteri de normalitat i en el *Age* tampoc el d’homoscedasticitat, i al tenir una variable objectiu qualitativa, tindrem que utilitzar el test de *Kruskal-Wallis*, i per a les variables qualitatives utilitzarem el *Chi-Square test of independence*.
+
+```{r}
+for (i in 1:(ncol(train))) {
+  if(col.names[i]!="Survived"){
+    print(col.names[i])
+    if (is.integer(train[,i]) | is.numeric(train[,i])) {
+      fun=kruskal.test(g=train[,i],x=train$Survived)
+      print(fun)
+    } else {
+      tbl = table(train[,i],train$Survived)
+      fun= chisq.test(tbl)
+      print(fun)
+      print(sqrt(fun$statistic / sum(tbl)))
+    }
+  }
+}
+```
+
+Observant els diferents resultat que hem obtingut, podem veure que en tots els casos el p-valor és inferior a 0.05, cosa que indica que podem rebutjar la hipòtesi nul·la de que les distribucions de grups de dades són les mateixes, i podem assumir que hi ha diferencies estadísticament significatives entre els grups de dades analitzades. És a dir hi ha una certa dependència entre les 2 variables.<br>
+Per saber quina variable te una relació més forta que les altres ens fixem amb el valor *X-squared*, com més gran, més forta és la relació. així que les podem ordenar de més grana  més petites i obtenim: *Sex* (260.72)> *Age* (185.78)> *Pclass* (102.89)> *HasCabin* (87.941)> *SibSp* (37.23)> *Parch* (27.894)> *Embarked* (25.964)<br>
+Així dons la variable que té una relació més amb la supervivència del passatger és el sexe, seguit de l'edat i de la classe. Això te sentit amb la típica frase de les pel·lícules: "Les dones y els nens primer", juntament amb que els de primera classe tenien un poder i importància més elevada que els de 3a classe.<br>
+
+### 2.5.2 Comparació entre grups.
+
+Ja sabem que hi ha una relació entre l'edat dels passatgers i la seva supervivència, però no sabem cap on es decanta aquesta relació. Per tant una de les preguntes que ens podríem fer és: L'edat dels supervivents és inferior a la dels no supervivents?<br>
+Per resoldre aquesta pregunta farem un contrast d’hipòtesis sobre dos mostres. Hem de destacar que com que les dades no segueixen una distribució normal, tindríem que utilitzar un test no paramètric com el de *Mann-Whitney*, però ja que la nostra mostra és superior a 30 registres podem utilitzar l'aproximació de *t-student* per a fer el contrast.<br>
+Així dons tenim com a hipòtesis nul·la que no hi ha diferencia entre la mitja d’edat entre els supervivents i els no supervivents i com a hipòtesi alternativa que la mitjana d'edat dels supervivent és menor.<br>
+
+H0 : u1 - u2 = 0<br>
+H1 : u1 - u2 < 0
+
+
+```{r}
+  edatS = train[which(train$Survived=="1"),"Age"]
+  edatNS = train[which( train$Survived=="0"),"Age"]
+  t.test(edatS, edatNS,alternative = "less")
+```
+Obtenim un p-valor de 0.0031, al ser inferior que 0.05 podem rebutjar la hipòtesi nul·la i acceptar l'alternativa de que l'edat dels supervivent és menor a la dels no supervivents. Això podria confirmar que més gent jove va sobreviure a l'accident del titànic.<br>
+Una altre de les preguntes que ens podríem fer seria si la mitjan d'edat dels passatgers de sexe masculí que van sobreviure és més gran que al passatgers de sexe femení que van sobreviure?<br>
+Fem un altre contrast d’hipòtesi aquest cop tenim:<br>
+H0 : u1 - u2 = 0<br>
+H1 : u1 - u2 > 0
+
+
+```{r}
+  edatSM = train[which(train$Sex=="male" & train$Survived=="1"),"Age"]
+  edatSF = train[which(train$Sex=="female" & train$Survived=="1"),"Age"]
+  t.test(edatSM, edatSF,alternative = "greater")
+```
+en aquest cas el p-valor és de 0.587 que és superior a 0.05, per tant no podem descartar la hipòtesi nul·la i sembla que no hi ha diferencia entre la mitjana d'edat dels passatger sobrevivents de sexe masculí i els de sexe femení.<br>
+
+### 2.5.3 Regressió lineal
+
+Tot seguit intentarem crear un model de regressió lineal que utilitzi tant les variables qualitatives com quantitatives per poder fer les prediccions de si el passatger va sobreviure o no. Com que la variable a predir no és quantitativa tindrem que utilitzar la funció *glm* indicant que es binomial(), per a així transformar els possibles resultats a un resultat booleà.<br>
+començarem creant diferents models per a veure com va afectant cada variable en el model i ens quedarem amb el que tingui un valor AIC (Akaike's Information Criteria) menor i de mica en mica anar sumant noves variables al millor model fins que ja no es pugui millorar. Així veurem si hi ha molta diferencia entre crear un model amb totes les variables o construir un model mica en mica per intentar obtenir el millor resultat.<br>
+Comencem amb els models individuals per veure si les variables amb major correlació també produeixen models millors.
+
+```{r}
+regS<-glm(Survived ~Sex,binomial(),train)
+cat("Sex: ",regS$aic,"params:", regS$coefficients,"\n")
+regA<-glm(Survived ~Age,binomial(),train)
+cat("Age: ",regA$aic,"params:", regA$coefficients,"\n")
+regP<-glm(Survived ~Pclass,binomial(),train)
+cat("Pclass: ",regP$aic,"params:", regP$coefficients,"\n")
+regC<-glm(Survived ~HasCabin,binomial(),train)
+cat("HasCabin: ",regC$aic,"params:", regC$coefficients,"\n")
+regSi<-glm(Survived ~SibSp,binomial(),train)
+cat("SibSp: ",regSi$aic,"params:", regSi$coefficients,"\n")
+regPa<-glm(Survived ~Parch,binomial(),train)
+cat("Parch: ",regPa$aic,"params:", regPa$coefficients,"\n")
+regE<-glm(Survived ~Embarked,binomial(),train)
+cat("Embarked: ",regE$aic,"params:", regE$coefficients,"\n")
+```
+Efectivament, sembla que la variable *Sex* és la que obté un millor resultat, tot i que després la variable *PClass* i *HasCabin* obtenen un millor resultat que *Age*.<br>
+Provem afegint una segona variable al model amb la variable *Sex*:
+```{r}
+reg<-glm(Survived ~Sex+Age,binomial(),train)
+cat("Sex+Age: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Pclass+Age,binomial(),train)
+cat("Sex+Pclass: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin,binomial(),train)
+cat("Sex+HasCabin: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+SibSp,binomial(),train)
+cat("Sex+SibSp: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+Parch,binomial(),train)
+cat("Sex+Parch: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+Embarked,binomial(),train)
+cat("Sex+Embarked: ",reg$aic,"params:", reg$coefficients,"\n")
+```
+De les combinacions provades sembla que el millor model és el creat per les variables (*Sex+HasCabin*) amb un valor AIC de 851.8062, que millora el model de la variable *Sex* sola, seguit de la combinació amb *Embarked, SibSp, Parch, Age* i *Pclass*. Per contra del que veiem anteriorment, sembla que el model que te 2 de les variables amb més correlació no és el millor, això segurament és degut a que la informació que ens aporten les 2 variables es redundant, en canvi el model amb la variable *Sex+HasCabin* conté menys informació redundant que ajuda a classificar millor les dades.<br>
+
+Seguim afegint una tercera variable.<br>
+
+```{r}
+reg<-glm(Survived ~Sex+HasCabin+Age,binomial(),train)
+cat("Sex+HasCabin+Age: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+Pclass,binomial(),train)
+cat("Sex+HasCabin+Pclass: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+SibSp,binomial(),train)
+cat("Sex+HasCabin+SibSp: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+Parch,binomial(),train)
+cat("Sex+HasCabin+Parch: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+Embarked,binomial(),train)
+cat("Sex+HasCabin+Embarked: ",reg$aic,"params:", reg$coefficients,"\n")
+```
+
+Sembla que seguim millorant el model ja que hem obtingut un valor de AIC de 828.3345 amb la combinació de (*Sex+HasCabin+PClass*), seguit de la combinació amb *Age, SibSp, Embarked* i *Parch*.<br>
+
+Seguim afegint una variable més al millor model.
+
+```{r}
+reg<-glm(Survived ~Sex+HasCabin+Pclass+Age,binomial(),train)
+cat("Sex+HasCabin+Pclass+Age: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+Pclass+SibSp,binomial(),train)
+cat("Sex+HasCabin+Pclass+SibSp: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+Pclass+Parch,binomial(),train)
+cat("Sex+HasCabin+Pclass+Parch: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+Pclass+Embarked,binomial(),train)
+cat("Sex+HasCabin+Pclass+Embarked: ",reg$aic,"params:", reg$coefficients,"\n")
+```
+
+Sembla que ara si que la variable *Age* és la que ens ajuda a millorar més el model actual amb un AIC de 799.672.<br>
+Seguim l'addició:
+
+```{r}
+reg<-glm(Survived ~Sex+HasCabin+Pclass+Age+SibSp,binomial(),train)
+cat("Sex+HasCabin+Pclass+Age+SibSp: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+Pclass+Age+Parch,binomial(),train)
+cat("Sex+HasCabin+Pclass+Age+Parch: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+Pclass+Age+Embarked,binomial(),train)
+cat("Sex+HasCabin+Pclass+Age+Embarked: ",reg$aic,"params:", reg$coefficients,"\n")
+```
+Aquest cop la variable *SibSp* és la que ens ajuda a millorar una mica més amb un AIC de 780.7809.<br>
+```{r}
+reg<-glm(Survived ~Sex+HasCabin+Pclass+Age+SibSp+Parch,binomial(),train)
+cat("Sex+HasCabin+Pclass+Age+SibSp+Parch: ",reg$aic,"params:", reg$coefficients,"\n")
+reg<-glm(Survived ~Sex+HasCabin+Pclass+Age+SibSp+Embarked,binomial(),train)
+cat("Sex+HasCabin+Pclass+Age+SibSp+Embarked: ",reg$aic,"params:", reg$coefficients,"\n")
+```
+La resta de variables tan *Parch* com *Embarked* no ens ajuden a millorar el model, ja que la puntuació AIC no millora. Així dons podem descartar aquestes 2 variables ja que no ens són d'utilitat per el model de regressió lineal que hem obtingut.<br>
+```{r}
+reg<-glm(Survived ~Sex+HasCabin+Pclass+Age+SibSp,binomial(),train)
+summary(reg)
+taula <- table(train$Survived,predict(object=reg, newdata =train, type="response")> 0.5)
+taula 
+precisio <- sum(diag(taula)) / sum(taula)
+precisio
+cat("error:",(1-precisio)*100,"%")
+```
+
+Si directament haguéssim fet un model amb totes les variables que teníem ja que semblava que ens aportaven informació haguéssim tingut el model:
+```{r}
+reg<-glm(Survived ~Sex+Age+Pclass+HasCabin+SibSp+Parch+Embarked,binomial(),train)
+summary(reg)
+taula <- table(train$Survived,predict(object=reg, newdata =train, type="response")> 0.5)
+taula 
+precisio <- sum(diag(taula)) / sum(taula)
+precisio
+cat("error:",(1-precisio)*100,"%")
+```
+
+Els dos models són molt similars, tot i que el model amb menys variables te un AIC una mica millor de 780.78 en front del 782.34 del model amb totes les variable. Però en el cas concret de les dades que li hem passat la precisió del model amb totes les dades ha sigut una mica superior amb un error del 17.85% en front de 18.4% del model anterior.
+
+### 2.5.3 Random Forest Classifie
+
+Els models de regressió tenen un valor AIC és molt elevat, i un error al voltant del 18%. Per tant el model de regressió lineal, tot i ser el millor que hem pogut obtenir, no s'ajusta gaire bé. Així que podem provar altres models a veure si s’ajusten millor, per exemple podem provar un model RandomForestClassifier:
+
+```{r}
+library(randomForest)
+set.seed(51)
+rf<-randomForest(Survived~.,data = train,method = 'rf',trControl = trainControl(method = 'cv',number = 5))
+rf
+```
+
+Provem també de crear el model amb les millors variables que em trobat amb el model de regressió lineal, per comprovar si hi ha molt diferencia:
+```{r}
+set.seed(51)
+rf<-randomForest(Survived~Sex+Age+Pclass+HasCabin+SibSp,data = train,method = 'rf',trControl = trainControl(method = 'cv',number = 5))
+rf
+```
+
+Els 2 models obtinguts són millors que els de regressió lineal, i en aquest cas, el model amb menys variables també té una millor precisió que el model amb totes les variables, Tot i que continua sent un valor elevat del 16.05% d’error.
+
+### 2.6. Conclusions
+Com hem vist, sempre s'ha de fer un pretractament a tots els datasets que s’obtenen per a fer una correcció d'errors, normalització i estandardització, que ajuden a facilitar la feina posteriorment. També permet extreure informació inicial del dataset, com per exemple quines variables no aporten informació per a la resolució del problema i així eliminar-les. També hem vist que es poden utilitzar diferents mètodes per a corregit elements buits, com pot ser imputació de valors o eliminació de les dades, i com els valors extrems també poden aportar informació i no sempre s'han d’eliminar.<br>
+
+Posteriorment al tractament de dades, hem fet un anàlisi de correlacions per a veure de les variables restants quines ens aportaven més informació a l'hora de resoldre el problema. També ens hem plantejat diferents preguntes que és poden resoldre amb les dades disponibles per així extreure més coneixement del dataset que ens pugui ser útil per a la resolució del problema inicial.<br>
+
+Finalment, hem intentat crear un model de regressió lineal i un model random forest que ens ajudessin a donar resposta al problema inicial de descobrir si els passatgers havien sobreviscut o no al accident del titànic. Amb les dades disponibles no hem pogut crear de manera simple un model que ens dones una solució molt acurada, el millor que hem obtingut ha sigut un model amb un error de 16.05%. Segurament amb models més complexos i quer requereixin un nivell de computació més alt, podríem intentar aconseguir un model més acurat.
+
+
+
+
