@@ -1,0 +1,15 @@
+Pràctica 2: Web scraping
+Descripció
+Aquesta pràctica s’ha realitzat sota el context de l’assignatura "Tipologia i cicle de vida de les dades", pertanyent al Máster en ciència de dades de la universitat Oberta de Catalunya. Consisteix en aplicar tècniques de web scraping, mitjançant el llenguatge de programació python per extreure dades de la web www.aco.es y generar un dataset. Ens basem en el fet que som una de les empreses dominants del mercat i volem fer un anàlisi de mercat amb el competidor principal, per això extrèiem tota la informació disponible en la pagina web del competidor per poder classificar els seus productes en relació amb els nostres i fer una comparació en quant a preus i propietats.
+
+Membres de l'equip
+L'activitat ha sigut realitzada de manera individual per Xavier Parramon Boada.
+
+Fitxer del codi font
+src/main.py: punt d'entrada al programa. Inicia el procés de scraping.
+src/scraper.py: Conté la implementació de la classe ”ACO_Scraper” les funcions de la qual generen el conjunt de dades a partir de la informació de catàleg de la pagina web ACO.es.
+Recursos
+Lawson, R. (2015). Web Scraping with Python. Packt Publishing Ltd. Chapter 1 Introduction to web Scraping and 2. Scraping the Data.
+Subirats Maté, L. i Calvo González, M. Web scraping.
+Mitchel, R. (2015). Web Scraping with Python: Collecting Data from the Modern Web. O'Reilly Media, Inc. Chapter 1. Your First Web Scraper.
+web: Beautiful Soup Documentation. https://www.crummy.com/software/BeautifulSoup/bs4/doc/#
